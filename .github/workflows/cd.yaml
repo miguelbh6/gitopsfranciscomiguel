@@ -7,27 +7,27 @@ on:
 
 jobs:
   build:
-    name: Build and Deploy
+    name: Build & Deploy GitOps Pipeline
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
-      - name: Checkout code
+      - name: 1. Checkout repository code
         uses: actions/checkout@v4.2.2
         with:
           token: ${{ secrets.TOKEN_GITHUB || secrets.GITHUB_TOKEN }}
 
-      - name: Set up Docker Buildx
+      - name: 2. Setup Docker Buildx environment
         uses: docker/setup-buildx-action@v3.10.0
 
-      - name: Log in to Docker Hub
+      - name: 3. Authenticate with Docker Hub
         uses: docker/login-action@v3.3.0
         with:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Build and push image to Docker Hub
+      - name: 4. Build Docker image and push to registry
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -36,17 +36,17 @@ jobs:
             ${{ secrets.DOCKER_USERNAME }}/gitopsfranciscomiguel:${{ github.sha }}
             ${{ secrets.DOCKER_USERNAME }}/gitopsfranciscomiguel:latest
 
-      - name: Setup Kustomize
+      - name: 5. Install Kustomize binary
         run: |
           curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash -s 5.4.1
           sudo mv kustomize /usr/local/bin/
 
-      - name: Update Kubernetes manifests
+      - name: 6. Update Kustomize image tag in k8s manifests
         run: |
           cd k8s
           kustomize edit set image goserver=${{ secrets.DOCKER_USERNAME }}/gitopsfranciscomiguel:${{ github.sha }}
 
-      - name: Commit and push changes
+      - name: 7. Commit and push updated manifests back to repo
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
@@ -56,5 +56,6 @@ jobs:
             echo "No changes to commit"
           else
             git commit -m "chore(gitops): bump image tag to ${{ github.sha }}"
-            git push
+            git pull --rebase origin main
+            git push origin main
           fi
