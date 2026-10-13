@@ -35,17 +35,16 @@ jobs:
             ${{ secrets.DOCKER_USERNAME }}/gitopsfranciscomiguel:latest
 
       - name: Setup Kustomize
-        uses: imranismail/setup-kustomize@v1
-        with:
-          kustomize-version: "3.6.1"
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash -s 5.4.1
+          sudo mv kustomize /usr/local/bin/
 
       - name: Update Kubernetes manifests
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
         run: |
           cd k8s
-          kustomize edit set image goserver=$DOCKER_USERNAME/gitopsfranciscomiguel:${{ github.sha }}
-
+          kustomize edit set image goserver=${{ secrets.DOCKER_USERNAME }}/gitopsfranciscomiguel:${{ github.sha }}
       - name: Commit and push changes
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
