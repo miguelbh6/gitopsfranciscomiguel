@@ -31,3 +31,27 @@ jobs:
           tags: |
             ${{ secrets.DOCKER_USERNAME }}/gitopsfranciscomiguel:${{ github.sha }}
             ${{ secrets.DOCKER_USERNAME }}/gitopsfranciscomiguel:latest
+
+      - name: Setup Kustomize
+        uses: imranismail/setup-kustomize@v1
+        with:
+          kustomize-version: "5.8.3"
+      
+      - name: Update kubernets resources
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        run: |
+          cd k8s
+          kustomize edit set image goserver=$DOCKER_USERNAME/gitopsfranciscomiguel:$GITHUB_SHA
+
+      - name: Commit kustomize
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "Github action"
+          git commit -am "Bump docker version"
+
+      - name: Push
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.TOKEN_GITHUB }}
+          repository: miguelbh6/gitopsfranciscomiguel
