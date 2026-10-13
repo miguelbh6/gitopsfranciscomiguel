@@ -6,4 +6,4 @@ resources:
 images:
 - name: goserver
   newName: miguelbh6/gitopsfranciscomiguel
-  newTag: 0c93942328a9c155de71fed95de792c95e0e9aa1
+  newTag: 56700108ec8d86e0b297a0b412322f7bcba7dfdb
