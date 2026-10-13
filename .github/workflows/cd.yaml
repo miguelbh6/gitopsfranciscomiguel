@@ -9,6 +9,8 @@ jobs:
   build:
     name: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
@@ -40,11 +42,10 @@ jobs:
           sudo mv kustomize /usr/local/bin/
 
       - name: Update Kubernetes manifests
-        env:
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
         run: |
           cd k8s
           kustomize edit set image goserver=${{ secrets.DOCKER_USERNAME }}/gitopsfranciscomiguel:${{ github.sha }}
+
       - name: Commit and push changes
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
