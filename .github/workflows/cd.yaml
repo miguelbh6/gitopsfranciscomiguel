@@ -13,6 +13,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.TOKEN_GITHUB || secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -33,25 +35,26 @@ jobs:
             ${{ secrets.DOCKER_USERNAME }}/gitopsfranciscomiguel:latest
 
       - name: Setup Kustomize
-        uses: imranismail/setup-kustomize@v1
+        uses: kubernetes-sigs/kustomize-action@v2
         with:
-          kustomize-version: "5.8.3"
-      
-      - name: Update kubernets resources
+          kustomize-version: "v5.4.1"
+
+      - name: Update Kubernetes manifests
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
         run: |
           cd k8s
-          kustomize edit set image goserver=$DOCKER_USERNAME/gitopsfranciscomiguel:$GITHUB_SHA
+          kustomize edit set image goserver=$DOCKER_USERNAME/gitopsfranciscomiguel:${{ github.sha }}
 
-      - name: Commit kustomize
+      - name: Commit and push changes
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "Github action"
-          git commit -am "Bump docker version"
-
-      - name: Push
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.TOKEN_GITHUB }}
-          repository: miguelbh6/gitopsfranciscomiguel
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          git add k8s/
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore(gitops): bump image tag to ${{ github.sha }}"
+            git push
+          fi
