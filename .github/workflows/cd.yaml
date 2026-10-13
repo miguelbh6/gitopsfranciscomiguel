@@ -35,9 +35,9 @@ jobs:
             ${{ secrets.DOCKER_USERNAME }}/gitopsfranciscomiguel:latest
 
       - name: Setup Kustomize
-        run: |
-          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash -s 5.4.1
-          sudo mv kustomize /usr/local/bin/
+        uses: imranismail/setup-kustomize@v1
+        with:
+          kustomize-version: "3.6.1"
 
       - name: Update Kubernetes manifests
         env:
