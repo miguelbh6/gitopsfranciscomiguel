@@ -6,8 +6,16 @@ on:
       - main
 
 jobs:
-  build-and-push:
-    name: Build & Push Docker Image
+  checkout-code:
+    name: "1. Checkout Repository"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.2.2
+
+  build-and-push-docker:
+    name: "2. Build & Push Docker Image"
+    needs: checkout-code
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -31,9 +39,37 @@ jobs:
             ${{ secrets.DOCKER_USERNAME }}/gitopsfranciscomiguel:${{ github.sha }}
             ${{ secrets.DOCKER_USERNAME }}/gitopsfranciscomiguel:latest
 
-  update-manifests:
-    name: Update Kustomize & GitOps
-    needs: build-and-push
+  install-kustomize:
+    name: "3. Install Kustomize"
+    needs: build-and-push-docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash -s 5.4.1
+          kustomize version
+
+  update-k8s-manifests:
+    name: "4. Update K8s Manifests"
+    needs: build-and-push-docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.2.2
+
+      - name: Setup Kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash -s 5.4.1
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Update Kubernetes manifests
+        run: |
+          cd k8s
+          kustomize edit set image goserver=${{ secrets.DOCKER_USERNAME }}/gitopsfranciscomiguel:${{ github.sha }}
+
+  commit-changes:
+    name: "5. Commit Manifest Changes"
+    needs: update-k8s-manifests
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -53,10 +89,42 @@ jobs:
           cd k8s
           kustomize edit set image goserver=${{ secrets.DOCKER_USERNAME }}/gitopsfranciscomiguel:${{ github.sha }}
 
-      - name: Commit and push changes
+      - name: Commit local changes
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
+          git add k8s/
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore(gitops): bump image tag to ${{ github.sha }}"
+          fi
+
+  push-gitops:
+    name: "6. Push GitOps Changes to GitHub"
+    needs: commit-changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4.2.2
+        with:
+          token: ${{ secrets.TOKEN_GITHUB || secrets.GITHUB_TOKEN }}
+
+      - name: Setup Kustomize
+        run: |
+          curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash -s 5.4.1
+          sudo mv kustomize /usr/local/bin/
+
+      - name: Update & Commit & Push
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          cd k8s
+          kustomize edit set image goserver=${{ secrets.DOCKER_USERNAME }}/gitopsfranciscomiguel:${{ github.sha }}
+          cd ..
           
           git add k8s/
           if git diff --staged --quiet; then
