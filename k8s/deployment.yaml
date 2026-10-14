@@ -2,7 +2,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: goserver
+  namespace: default
 spec:
+  replicas: 3
   selector:
     matchLabels:
       app: goserver
@@ -11,9 +13,11 @@ spec:
       labels:
         app: goserver
     spec:
+      imagePullSecrets:
+        - name: dockerhub-secret
       containers:
       - name: goserver
-        image: goserver
+        image: miguelbh6/gitopsfranciscomiguel:56700108ec8d86e0b297a0b412322f7bcba7dfdb
         resources:
           requests:
             memory: "64Mi"
